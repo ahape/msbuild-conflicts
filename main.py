@@ -22,26 +22,23 @@ def update_assemblies(refs, module):
   for name, asm in refs.items():
     if name in assemblies:
       orig = assemblies[name]
-      if not isinstance(orig["version"], list) and orig["version"] != asm["version"]:
-        orig["version"] = [orig["version"], asm["version"]]
-      if isinstance(orig["version"], list) and asm["version"] not in orig["version"]:
-        orig["version"].append(asm["version"])
+      if not orig["version"] and asm["version"]:
+        orig["version"] = asm["version"]
       if not orig["publickeytoken"] and asm["publickeytoken"]:
         orig["publickeytoken"] = asm["publickeytoken"]
     else:
       assemblies[name] = asm
     if name != module:
-      asm["refs"].append({ "name": module, "version": asm["version"] })
+      assemblies[name]["refs"].append({ "name": module, "version": asm["version"] })
 
 def get_references_from_dll(dll_path):
   dll = get_dll_text(dll_path)
   refs = {}
   latest = None
   module = None
-  
+
   for line in dll.splitlines():
     line = line.strip()
-
     if line.startswith(".assembly "):
       name = line.split(" ")[-1]
       latest = { "refs": [], "version": None, "publickeytoken": None, "name": name }
@@ -71,7 +68,7 @@ def load_assemblies_from_cache():
 
 def cache_assemblies():
   with open(cache_file, "w") as f:
-    f.write(json.dumps(assemblies))
+    f.write(json.dumps(assemblies, indent=2))
 
 def optimize_assemblies():
   singles = {}
@@ -114,8 +111,10 @@ def create_graph():
     format="svg")
   
   for asm in optimize_assemblies().values():
-    for ref in asm["refs"]:
-      g.edge(ref["name"], asm["name"])
+    refs = asm["refs"]
+    label = not all(r["version"] == asm["version"] for r in refs)
+    for ref in refs:
+      g.edge(ref["name"], asm["name"], label=ref["version"] if label else None)
 
   #g.attr(overlap="false")
   #g.attr(splines="true")
@@ -132,7 +131,7 @@ if __name__ == "__main__":
 
   print(f"Running for directory: {directory}")
   if not os.path.exists(cache_file):
-    print("No cache file found. Disassembling all dlls in {directory}")
+    print(f"No cache file found. Disassembling all dlls in {directory}")
     load_assemblies(directory)
     cache_assemblies()
   else:
