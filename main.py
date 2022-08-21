@@ -1,9 +1,12 @@
 import sys, os, json, re
 import graphviz as GV
+import xml.etree.ElementTree as ET
 
 cache_file = "cache.json"
+no_version = (0,0,0,0)
 token_rx = re.compile(r"\((.*)\)\s+")
 assemblies = {}
+configs = []
 root = None
 
 def get_dll_text(dll_path):
@@ -13,7 +16,7 @@ def extract_token(line):
   return token_rx.search(line)[1].replace(" ", "").lower()
 
 def extract_version(line):
-  return line.split(" ")[-1].replace(":", ".")
+  return tuple(line.split(" ")[-1].split(":"))
 
 def extract_module(line):
   return line.split(" ")[-1].replace(".exe", "").replace(".dll", "")
@@ -81,8 +84,9 @@ def optimize_assemblies():
   singles = {}
   copy = assemblies.copy()
   copy.pop("mscorlib")
-  copy.pop("System")
   copy.pop("netstandard")
+  copy.pop("System")
+  copy.pop("System.Core")
 
   # Get rid of things not referenced
   for k, v in copy.copy().items():
@@ -114,6 +118,40 @@ def optimize_assemblies():
 
   return copy
 
+def parse_config(file):
+  root = ET.parse(file).getroot()
+  xmlns = "{urn:schemas-microsoft-com:asm.v1}"
+  bindings = []
+  for el in root.findall(f".//{xmlns}dependentAssembly"):
+    identity = el.find(f".//{xmlns}assemblyIdentity")
+    redirect = el.find(f".//{xmlns}bindingRedirect")
+    if ET.iselement(identity) and ET.iselement(redirect):
+      bindings.append({
+        "name": identity.get("name"),
+        "old": redirect.get("oldVersion"),
+        "new": tuple(redirect.get("newVersion")),
+      })
+  return bindings
+
+def load_config_data(directory):
+  global configs
+  for root, _, files in os.walk(directory):
+    for file in files:
+      if file.endswith(".config"):
+        configs += parse_config(os.path.join(root, file))
+  # Return unique
+  uniq, res = [], []
+  for x in configs:
+    if x["name"] not in uniq:
+      uniq.append(x["name"])
+      res.append(x)
+  res.sort(key=lambda x: x["name"])
+
+def find(arr, cb):
+  for e in arr:
+    if cb(e):
+      return e
+
 def create_graph():
   g = GV.Digraph(
     filename="Diagram",
@@ -121,9 +159,17 @@ def create_graph():
     #engine="neato",
     format="svg")
   
+  """
   for asm in optimize_assemblies().values():
+  """
+  for asm in assemblies.values():
     refs = asm["refs"]
     label = not all(r["version"] == asm["version"] for r in refs)
+    config = find(configs, lambda x: x["name"] == asm["name"])
+    ver = asm["version"]
+    if config: # TODO Make this more accurate
+      ver = config["new"]
+      label = asm["version"] != ver
     for ref in refs:
       g.edge(ref["name"], asm["name"], label=ref["version"] if label else None)
 
@@ -149,6 +195,5 @@ if __name__ == "__main__":
     print("Using cached assembly data")
     load_assemblies_from_cache()
 
+  load_config_data(directory)
   create_graph()
-
-  #print(json.dumps(assemblies, indent=2))
