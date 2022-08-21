@@ -3,8 +3,9 @@ import graphviz as GV
 import xml.etree.ElementTree as ET
 
 cache_file = "cache.json"
-no_version = (0,0,0,0)
+ver_rx = re.compile(r"\d+\.\d+\.\d+\.\d+")
 token_rx = re.compile(r"\((.*)\)\s+")
+no_version = "0.0.0.0"
 assemblies = {}
 configs = []
 root = None
@@ -16,7 +17,7 @@ def extract_token(line):
   return token_rx.search(line)[1].replace(" ", "").lower()
 
 def extract_version(line):
-  return tuple(line.split(" ")[-1].split(":"))
+  return line.split(" ")[-1].replace(":", ".")
 
 def extract_module(line):
   return line.split(" ")[-1].replace(".exe", "").replace(".dll", "")
@@ -51,7 +52,7 @@ def get_references_from_dll(dll_path):
     line = line.strip()
     if line.startswith(".assembly "):
       name = line.split(" ")[-1]
-      latest = { "refs": [], "deps": [], "version": None, "publickeytoken": None, "name": name }
+      latest = { "refs": [], "deps": [], "version": no_version, "publickeytoken": None, "name": name }
       refs[name] = latest
     elif latest is not None:
       if line.startswith(".publickeytoken "):
@@ -126,11 +127,16 @@ def parse_config(file):
     identity = el.find(f".//{xmlns}assemblyIdentity")
     redirect = el.find(f".//{xmlns}bindingRedirect")
     if ET.iselement(identity) and ET.iselement(redirect):
-      bindings.append({
+      old_value = redirect.get("oldVersion")
+      binding = {
         "name": identity.get("name"),
-        "old": redirect.get("oldVersion"),
-        "new": tuple(redirect.get("newVersion")),
-      })
+        "new": redirect.get("newVersion"),
+      }
+      if "-" in old_value:
+        binding["old_range"] = old_value.split("-")
+      else:
+        binding["old"] = old_value
+      bindings.append(binding)
   return bindings
 
 def load_config_data(directory):
@@ -152,6 +158,30 @@ def find(arr, cb):
     if cb(e):
       return e
 
+def ver_str_to_tuple(ver_str):
+  return tuple(int(x) for x in ver_str.split("."))
+
+def tuple_to_ver_str(tup):
+  return ".".join(str(x) for x in tup)
+
+def is_implicit_version(asm):
+  return asm["version"] == no_version
+
+# TODO Take into acct primary ref?
+def get_redirect_version(ref, version, asm):
+  version_tup = ver_str_to_tuple(version)
+  config = find(configs, lambda x: x["name"] == asm["name"])
+  if not config:
+    return ref["version"]
+  if "old_range" in config:
+    fro, to = config["old_range"]
+    if ver_str_to_tuple(fro) <= version_tup and ver_str_to_tuple(to) >= version_tup:
+      return config["new"]
+  if "old" in config:
+    if ver_str_to_tuple(config["old"]) == version_tup:
+      return config["new"]
+  return ref["version"]
+
 def create_graph():
   g = GV.Digraph(
     filename="Diagram",
@@ -164,12 +194,8 @@ def create_graph():
   """
   for asm in assemblies.values():
     refs = asm["refs"]
-    label = not all(r["version"] == asm["version"] for r in refs)
-    config = find(configs, lambda x: x["name"] == asm["name"])
     ver = asm["version"]
-    if config: # TODO Make this more accurate
-      ver = config["new"]
-      label = asm["version"] != ver
+    label = not all(is_implicit_version(r) or get_redirect_version(r, ver, asm) == ver for r in refs)
     for ref in refs:
       g.edge(ref["name"], asm["name"], label=ref["version"] if label else None)
 
