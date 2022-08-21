@@ -3,12 +3,12 @@ import graphviz as GV
 import xml.etree.ElementTree as ET
 
 cache_file = "cache.json"
-ver_rx = re.compile(r"\d+\.\d+\.\d+\.\d+")
 token_rx = re.compile(r"\((.*)\)\s+")
-no_version = "0.0.0.0"
 assemblies = {}
-configs = []
 root = None
+
+# TODO: Normalize as unix paths
+# directory should NOT end with "/"
 
 def get_dll_text(dll_path):
   return os.popen(f"ildasm /text {dll_path}").read()
@@ -52,7 +52,7 @@ def get_references_from_dll(dll_path):
     line = line.strip()
     if line.startswith(".assembly "):
       name = line.split(" ")[-1]
-      latest = { "refs": [], "deps": [], "version": no_version, "publickeytoken": None, "name": name }
+      latest = { "refs": [], "deps": [], "version": "0.0.0.0", "publickeytoken": None, "name": name }
       refs[name] = latest
     elif latest is not None:
       if line.startswith(".publickeytoken "):
@@ -127,60 +127,26 @@ def parse_config(file):
     identity = el.find(f".//{xmlns}assemblyIdentity")
     redirect = el.find(f".//{xmlns}bindingRedirect")
     if ET.iselement(identity) and ET.iselement(redirect):
-      old_value = redirect.get("oldVersion")
-      binding = {
+      bindings.append({
         "name": identity.get("name"),
-        "new": redirect.get("newVersion"),
-      }
-      if "-" in old_value:
-        binding["old_range"] = old_value.split("-")
-      else:
-        binding["old"] = old_value
-      bindings.append(binding)
+        "oldVersion": redirect.get("oldVersion"),
+        "newVersion": redirect.get("newVersion"),
+      })
   return bindings
 
-def load_config_data(directory):
-  global configs
+def dump_config_data(directory):
+  configs = {}
   for root, _, files in os.walk(directory):
     for file in files:
       if file.endswith(".config"):
-        configs += parse_config(os.path.join(root, file))
-  # Return unique
-  uniq, res = [], []
-  for x in configs:
-    if x["name"] not in uniq:
-      uniq.append(x["name"])
-      res.append(x)
-  res.sort(key=lambda x: x["name"])
+        configs[file] = parse_config(os.path.join(root, file))
+  with open("out/configs.json", "w") as f:
+    f.write(json.dumps(configs, indent=2))
 
 def find(arr, cb):
   for e in arr:
     if cb(e):
       return e
-
-def ver_str_to_tuple(ver_str):
-  return tuple(int(x) for x in ver_str.split("."))
-
-def tuple_to_ver_str(tup):
-  return ".".join(str(x) for x in tup)
-
-def is_implicit_version(asm):
-  return asm["version"] == no_version
-
-# TODO Take into acct primary ref?
-def get_redirect_version(ref, version, asm):
-  version_tup = ver_str_to_tuple(version)
-  config = find(configs, lambda x: x["name"] == asm["name"])
-  if not config:
-    return ref["version"]
-  if "old_range" in config:
-    fro, to = config["old_range"]
-    if ver_str_to_tuple(fro) <= version_tup and ver_str_to_tuple(to) >= version_tup:
-      return config["new"]
-  if "old" in config:
-    if ver_str_to_tuple(config["old"]) == version_tup:
-      return config["new"]
-  return ref["version"]
 
 def create_graph():
   g = GV.Digraph(
@@ -193,11 +159,8 @@ def create_graph():
   for asm in optimize_assemblies().values():
   """
   for asm in assemblies.values():
-    refs = asm["refs"]
-    ver = asm["version"]
-    label = not all(is_implicit_version(r) or get_redirect_version(r, ver, asm) == ver for r in refs)
-    for ref in refs:
-      g.edge(ref["name"], asm["name"], label=ref["version"] if label else None)
+    for ref in asm["refs"]:
+      g.edge(ref["name"], asm["name"], label=ref["version"])
 
   #g.attr(overlap="false")
   #g.attr(splines="true")
@@ -221,5 +184,5 @@ if __name__ == "__main__":
     print("Using cached assembly data")
     load_assemblies_from_cache()
 
-  load_config_data(directory)
+  dump_config_data(directory)
   create_graph()
