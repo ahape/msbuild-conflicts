@@ -29,7 +29,14 @@ def update_assemblies(refs, module):
     else:
       assemblies[name] = asm
     if name != module:
-      assemblies[name]["refs"].append({ "name": module, "version": asm["version"] })
+      this = assemblies[name]
+      # Want to just default nulls to something
+      this["refs"].append({ "name": module, "version": asm["version"] or this["version"] })
+  if module in assemblies:
+    assemblies[module]["deps"] += [{ 
+      "name": v["name"],
+      "version": v["version"]
+    } for v in refs.values() if v["name"] != module]
 
 def get_references_from_dll(dll_path):
   dll = get_dll_text(dll_path)
@@ -41,7 +48,7 @@ def get_references_from_dll(dll_path):
     line = line.strip()
     if line.startswith(".assembly "):
       name = line.split(" ")[-1]
-      latest = { "refs": [], "version": None, "publickeytoken": None, "name": name }
+      latest = { "refs": [], "deps": [], "version": None, "publickeytoken": None, "name": name }
       refs[name] = latest
     elif latest is not None:
       if line.startswith(".publickeytoken "):
@@ -77,9 +84,25 @@ def optimize_assemblies():
   copy.pop("System")
   copy.pop("netstandard")
 
+  # Get rid of things not referenced
+  for k, v in copy.copy().items():
+    if len(v["refs"]) == 0 and k != root:
+      copy.pop(k)
+  for asm in copy.values():
+    new_refs = []
+    for ref in asm["refs"]:
+      if ref["name"] in copy:
+        new_refs.append(ref)
+    asm["refs"] = new_refs
+    new_deps = []
+    for ref in asm["deps"]:
+      if ref["name"] in copy:
+        new_deps.append(ref)
+    asm["deps"] = new_deps
+
   # Squash (group) single references
   for k, v in copy.copy().items():
-    if len(v["refs"]) == 1:
+    if len(v["refs"]) == 1 and len(v["deps"]) == 0:
       name = v["refs"][0]["name"]
       if name not in singles:
         singles[name] = v.copy()
@@ -88,18 +111,6 @@ def optimize_assemblies():
       copy.pop(k)
   for asm in singles.values():
     copy[asm["name"]] = asm
-
-  # Get rid of things not referenced
-  for k, v in copy.copy().items():
-    if len(v["refs"]) == 0 and k != root:
-      copy.pop(k)
-
-  for asm in copy.values():
-    new_refs = []
-    for ref in asm["refs"]:
-      if ref["name"] in copy:
-        new_refs.append(ref)
-    asm["refs"] = new_refs
 
   return copy
 
