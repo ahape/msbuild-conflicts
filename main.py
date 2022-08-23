@@ -17,7 +17,7 @@ class Node():
     return id(self.name)
 
 class Ref(Node):
-  def __init__(self, node, version="", is_primary=False):
+  def __init__(self, node, version="", is_primary=False): # TODO: Use **kwargs
     super().__init__(node.name)
     self.version = version
     self.is_root_proj = node.is_root_proj
