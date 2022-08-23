@@ -8,16 +8,16 @@ There was a conflict between "System.Net.Http, Version=4.0.0.0, Culture=neutral,
         C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.Net.Http.dll
           Project file item includes which caused reference "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.Net.Http.dll".
             System.Net.Http
-    References which depend on "System.Net.Http, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" [C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.dll].
-        C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\netstandard.dll
-          Project file item includes which caused reference "C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\netstandard.dll".
-            C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll
-        C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\Azure.Core.dll
-          Project file item includes which caused reference "C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\Azure.Core.dll".
-            C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll
-        C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.Formatting.dll
-          Project file item includes which caused reference "C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.Formatting.dll".
-            C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll			
+    References which depend on "System.Net.Http, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" [C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.dll].
+        C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\netstandard.dll
+          Project file item includes which caused reference "C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\netstandard.dll".
+            C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll
+        C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\Azure.Core.dll
+          Project file item includes which caused reference "C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\Azure.Core.dll".
+            C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll
+        C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.Formatting.dll
+          Project file item includes which caused reference "C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.Formatting.dll".
+            C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll			
 ```
 
 into a pretty diagram:
@@ -28,14 +28,14 @@ into a pretty diagram:
 
 (For Windows only)
 
-1. You need to install Python, which typically the Windows installer ensures the `py` command is globally available. If not, you'll need to make sure it is.
+1. You need to install Python (latest version will work fine), which typically the Windows installer ensures the `py` command is globally available. If not, you'll need to make sure it is.
 1. Powershell
 1. You'll need to download [GraphViz](https://www.graphviz.org/download/) and after the install make sure that the `/bin` directory is added to your PATH environment variable (the official 3rd party Python library requires it).
-1. Make sure that MSBuild's `/bin` directory is added to your PATH environment variable.
-1. Download this repository. `cd` into it and run `py -m pip install -r requirements.txt` That will install the third party libraries used in this repo.
-1. Add the `src` directory of this repository to your PATH environment variable.
+1. Make sure that MSBuild's `/bin` directory is added to your PATH environment variable. You can typically find that somewhere like this: `c:\Program Files (x86)\Microsoft Visual Studio\<Year>\<Product>\MSBuild\Current\Bin`.
+1. Download this repository. `cd` into it and run `py -m pip install -r requirements.txt`. That will install the (open source) third party libraries used in this repo.
+1. Add the `/src` directory of this repository to your PATH environment variable.
 
-That's it! Easy as py.
+That's it! Easy as py. Nyuck nyuck nyuck.
 
 ## Usage
 
