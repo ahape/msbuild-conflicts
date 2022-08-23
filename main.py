@@ -14,17 +14,19 @@ csproj_rx = re.compile(r"\\([^\\]+)\.csproj")
 assemblies = {}
 
 class Node():
-  def __init__(self, name):
+  def __init__(self, name, conflict=False):
     self.name = name
+    self.conflict = conflict
     self.references = set()
 
   def __hash__(self):
     return id(self.name)
 
 class Ref():
-  def __init__(self, node, version=""):
+  def __init__(self, node, version="", is_primary=False):
     self.node = node
     self.version = version
+    self.is_primary = is_primary
 
   def __hash__(self):
     return id(self.node.name + self.version)
@@ -145,53 +147,67 @@ def find(arr, cb):
     if cb(x):
       return x
 
-def parse_build_output(file_path):
+def parse_assembly_name(line):
+  if match := dll_rx.search(line):
+    return match[1]
+  return parse_fusion_name(line.strip())["name"]
+
+def get_node(nodes, name):
+  if node := find(nodes, lambda x: x.name == name):
+    return node
+  node = Node(name)
+  nodes.append(node)
+  return node
+
+def parse_project_name(line):
+  start = line.index(" [")+2
+  end = line.index("]")
+  match = csproj_rx.search(line[start:end])
+  if match:
+    return match[1]
+
+# Partial name of conflict instead of number
+def parse_build_output(file_path, max_conflicts):
   nodes = []
-  root = None
-  child = None
-  version = None
+  ref_num = 0
+  root, ref, child, version = None, None, None, None
   with open(file_path) as f:
     for line in f.readlines():
+      if not root and line.startswith("Project "):
+        name = csproj_rx.search(line)[1]
+        root = get_node(nodes, name)
       if "MSB3277:" in line:
         index = line.index("MSB3277:") + len("MSB3277:")
-        line = line[index:]
-        if line.startswith("     References which depend on"):
+        line = line[index:] # Start at the beginning of the warning message
+        if line.startswith(" Found conflicts between different versions of"):
+          ref_num = 0
+        elif line.startswith("     References which depend on"):
+          proj = parse_project_name(line)
+          ref_num += 1
           child = None
           asm = parse_references_which_depend_on(line)
           version = asm["version"]
-          root = find(nodes, lambda x: x.name == asm["name"])
-          if not root:
-            root = Node(asm["name"])
-            nodes.append(root)
-        elif root and dep_on_rx.search(line):
-          name = dll_rx.search(line)[1]
-          child = find(nodes, lambda x: x.name == name)
-          proj = csproj_rx.search(line[line.index(" [")+2:line.index("]")])[1]
-          if not child:
-            child = Node(name)
-            nodes.append(child)
-          if root.name == child.name:
-            node = find(nodes, lambda x: x.name == proj)
-            if not node:
-              node = Node(proj)
-            root.references.add(Ref(node, version))
-          else:
-            root.references.add(Ref(child, version))
+          ref = get_node(nodes, asm["name"])
+          ref.conflict = True
+        elif ref and dep_on_rx.search(line):
+          proj = parse_project_name(line)
+          name = parse_assembly_name(line)
+          child = get_node(nodes, name)
+          ref.references.add(Ref(child, version, ref_num == 1))
         elif child and include_item_rx.search(line):
+          proj = parse_project_name(line)
           line = line[:line.index(" [")]
-          name = None
-          if match := dll_rx.search(line):
-            name = match[1]
-          else:
-            name = parse_fusion_name(line.strip())["name"]
-          grandchild = find(nodes, lambda x: x.name == name)
-          if not grandchild:
-            grandchild = Node(name)
-            nodes.append(grandchild)
-          if child.name != grandchild.name:
-            child.references.add(Ref(grandchild))
+          name = parse_assembly_name(line)
+          grandchild = get_node(nodes, name)
+          child.references.add(Ref(grandchild, version, ref_num == 1))
+          grandchild.references.add(Ref(get_node(nodes, proj), version, ref_num == 1))
+      elif ref and isinstance(max_conflicts, int):
+        break
     else:
-      root = child = version = None
+      ref = child = version = None
+  for node in nodes:
+    if len(node.references) == 0 and node.name != root.name:
+      node.references.add(Ref(root))
   return nodes
 
 def create_graph_simple(nodes):
@@ -202,15 +218,20 @@ def create_graph_simple(nodes):
   combos = set()
   for node in nodes:
     for ref in node.references:
-      a_to_b = (ref.node.name, node.name)
-      b_to_a = (node.name, ref.node.name)
-      if a_to_b not in combos or b_to_a not in combos:
-        combos.add(a_to_b)
-        combos.add(b_to_a)
-        g.edge(ref.node.name, node.name, label=ref.version)
+      a = ref.node.name
+      b = node.name
+      if a != b and ((a,b) not in combos or (b,a) not in combos):
+        combos.add((a,b))
+        combos.add((b,a))
+        if node.conflict:
+          g.node(b, style="filled", fillcolor="salmon")
+        if ref.version:
+          g.edge(a, b, label=ref.version, color="blue" if ref.is_primary else "black")
+        else:
+          g.edge(a, b)
   g.attr(overlap="false")
   g.attr(splines="true")
-  g.unflatten(stagger=10).view()
+  g.view()
 
 def create_graph_complex():
   g = GV.Digraph(
@@ -222,7 +243,14 @@ def create_graph_complex():
       g.edge(ref["name"], asm["name"])
   g.view()
 
+def try_parse_int(x):
+  try:
+    return int(x)
+  except:
+    return None
+
 if __name__ == "__main__":
+  """
   if len(sys.argv) < 2:
     print("Need to supply out directory")
     raise SystemExit
@@ -233,10 +261,14 @@ if __name__ == "__main__":
   else:
     build_output_file = "build.txt"
     directory = sys.argv[-1]
-
-  nodes = parse_build_output(build_output_file)
+  """
+  build_output_file = sys.argv[-1]
+  if max_conflicts := try_parse_int(build_output_file):
+    build_output_file = sys.argv[-2]
+  nodes = parse_build_output(build_output_file, max_conflicts)
   create_graph_simple(nodes)
 
+  """
   print(f"Running for directory: {directory}")
   if not os.path.exists(cache_file):
     print(f"No cache file found. Disassembling all dlls in {directory}")
@@ -248,3 +280,4 @@ if __name__ == "__main__":
 
   dump_config_data(directory)
   create_graph_complex()
+  """
