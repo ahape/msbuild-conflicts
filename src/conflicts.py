@@ -1,6 +1,7 @@
-import sys, re
+import sys, re, os
 import graphviz as GV
 
+home_dir = "/Users/brightmetrics/Desktop/python/conflicts"
 ref_which_dep_rx = re.compile(r'References which depend on "(.*?)"')
 conflict_dep_rx = re.compile(r"^         \S")
 conflict_dep_dep_rx = re.compile(r"^             \S")
@@ -76,39 +77,37 @@ def trim_msberr_line(line):
 def strip_proj_portion(line):
   return line[:line.index(" [")]
 
-def parse_build_output(file_path):
+def parse_build_output(build_output):
   nodes = []
   ref_num = 0
   root_proj, conflict, ref, version = None, None, None, None
-  last_proj = None
-  with open(file_path) as f:
-    for line in f.readlines():
-      if not root_proj and line.startswith("Project "):
-        name = csproj_rx.search(line)[1]
-        root_proj = get_node(nodes, name)
-        root_proj.is_root_proj = True
-      if "MSB3277:" in line:
-        line = trim_msberr_line(line)
-        proj = parse_project_name(line)
-        line = strip_proj_portion(line)
-        if line.startswith(" Found conflicts between different versions of"):
-          ref_num = 0
-        elif line.startswith("     References which depend on"): # Conflict start
-          ref_num += 1
-          ref = None
-          asm = parse_references_which_depend_on(line)
-          version = asm.version
-          conflict = get_node(nodes, asm.name)
-          conflict.is_conflict = True
-        elif conflict and conflict_dep_rx.search(line): # Conflict <- Dep1 start
-          name = parse_assembly_name(line)
-          ref = get_node(nodes, name)
-          conflict.references.add(Ref(ref, version, ref_num == 1))
-        elif ref and conflict_dep_dep_rx.search(line): # Conflict <- Dep1 <- Dep2 start
-          name = parse_assembly_name(line)
-          refref = get_node(nodes, name)
-          ref.references.add(Ref(refref, version, ref_num == 1))
-          refref.references.add(Ref(get_node(nodes, proj), version, ref_num == 1))
+  for line in build_output.splitlines():
+    if not root_proj and line.startswith("Project "):
+      name = csproj_rx.search(line)[1]
+      root_proj = get_node(nodes, name)
+      root_proj.is_root_proj = True
+    if "MSB3277:" in line:
+      line = trim_msberr_line(line)
+      proj = parse_project_name(line)
+      line = strip_proj_portion(line)
+      if line.startswith(" Found conflicts between different versions of"):
+        ref_num = 0
+      elif line.startswith("     References which depend on"): # Conflict start
+        ref_num += 1
+        ref = None
+        asm = parse_references_which_depend_on(line)
+        version = asm.version
+        conflict = get_node(nodes, asm.name)
+        conflict.is_conflict = True
+      elif conflict and conflict_dep_rx.search(line): # Conflict <- Dep1 start
+        name = parse_assembly_name(line)
+        ref = get_node(nodes, name)
+        conflict.references.add(Ref(ref, version, ref_num == 1))
+      elif ref and conflict_dep_dep_rx.search(line): # Conflict <- Dep1 <- Dep2 start
+        name = parse_assembly_name(line)
+        refref = get_node(nodes, name)
+        ref.references.add(Ref(refref, version, ref_num == 1))
+        refref.references.add(Ref(get_node(nodes, proj), version, ref_num == 1))
     else:
       conflict = ref = version = None
   for node in nodes:
@@ -119,7 +118,7 @@ def parse_build_output(file_path):
 def create_graph_simple(nodes):
   g = GV.Digraph(
     filename="Diagram",
-    directory="out",
+    directory=f"{home_dir}/out",
     format="svg")
   combos = set()
   for node in nodes:
@@ -141,7 +140,19 @@ def create_graph_simple(nodes):
   g.attr(splines="true")
   g.view()
 
+def run_msbuild(build_dir):
+  return os.popen(f"msbuild /v:d {build_dir}").read()
+
 if __name__ == "__main__":
-  build_output_file = sys.argv[-1]
-  nodes = parse_build_output(build_output_file)
+  build_dir = sys.argv[-1]
+  print(f"Building {build_dir}...")
+  build_output = run_msbuild(build_dir)
+  if not os.path.exists(f"{home_dir}/out"):
+    os.mkdir(f"{home_dir}/out")
+  print("Saving results...")
+  open(f"{home_dir}/out/build.txt", "w").write(build_output)
+  print("Parsing results...")
+  nodes = parse_build_output(build_output)
+  print("Creating graph...")
   create_graph_simple(nodes)
+  print("Done")
