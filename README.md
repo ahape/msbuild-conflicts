@@ -17,7 +17,7 @@ There was a conflict between "System.Net.Http, Version=4.0.0.0, Culture=neutral,
             C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll
         C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.Formatting.dll
           Project file item includes which caused reference "C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.Formatting.dll".
-            C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll	RingCentralRepositoryTests			
+            C:\src\projects\BrightMetricsWeb\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll			
 ```
 
 into a pretty diagram:
