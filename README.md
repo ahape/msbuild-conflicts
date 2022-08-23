@@ -32,7 +32,7 @@ into a pretty diagram:
 1. Powershell
 1. You'll need to download [GraphViz](https://www.graphviz.org/download/) and after the install make sure that the `/bin` directory is added to your PATH environment variable (the official 3rd party Python library requires it).
 1. Make sure that MSBuild's `/bin` directory is added to your PATH environment variable.
-1. Download this repository. `cd` into it and run `py -m pip install -r .` That will install the third party libraries used in this repo.
+1. Download this repository. `cd` into it and run `py -m pip install -r requirements.txt` That will install the third party libraries used in this repo.
 1. Add the `src` directory of this repository to your PATH environment variable.
 
 That's it! Easy as py.
