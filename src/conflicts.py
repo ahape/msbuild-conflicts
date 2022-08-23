@@ -1,7 +1,6 @@
-import sys, re, os
+import re, os, sys, tempfile
 import graphviz as GV
 
-home_dir = "/Users/brightmetrics/Desktop/python/conflicts"
 ref_which_dep_rx = re.compile(r'References which depend on "(.*?)"')
 conflict_dep_rx = re.compile(r"^         \S")
 conflict_dep_dep_rx = re.compile(r"^             \S")
@@ -118,7 +117,7 @@ def parse_build_output(build_output):
 def create_graph_simple(nodes):
   g = GV.Digraph(
     filename="Diagram",
-    directory=f"{home_dir}/out",
+    directory=tempfile.gettempdir(),
     format="svg")
   combos = set()
   for node in nodes:
@@ -140,17 +139,16 @@ def create_graph_simple(nodes):
   g.attr(splines="true")
   g.view()
 
-def run_msbuild(build_dir):
+def run_msbuild(build_dir=""):
   return os.popen(f"msbuild /v:d {build_dir}").read()
 
 if __name__ == "__main__":
   build_dir = sys.argv[-1]
-  print(f"Building {build_dir}...")
-  build_output = run_msbuild(build_dir)
-  if not os.path.exists(f"{home_dir}/out"):
-    os.mkdir(f"{home_dir}/out")
-  print("Saving results...")
-  open(f"{home_dir}/out/build.txt", "w").write(build_output)
+  print(f"Building...")
+  if os.path.isdir(build_dir):
+    build_output = run_msbuild(build_dir)
+  else:
+    build_output = run_msbuild()
   print("Parsing results...")
   nodes = parse_build_output(build_output)
   print("Creating graph...")
