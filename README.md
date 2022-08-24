@@ -32,8 +32,11 @@ into a pretty diagram:
 1. Powershell
 1. You'll need to download [GraphViz](https://www.graphviz.org/download/) (latest version should work fine) and after the install make sure that the `/bin` directory is added to your PATH environment variable (the official 3rd party Python library requires it).
 1. Make sure that MSBuild's `/bin` directory is added to your PATH environment variable. You can typically find that somewhere like this: `c:\Program Files (x86)\Microsoft Visual Studio\<Year>\<Product>\MSBuild\Current\Bin`.
-1. Clone this repository. Fire up a terminal and `cd` into your locally cloned repo and then run `py -m pip install -r requirements.txt`. That will install the (open source) third party libraries used in this repo.
-1. Add the `/src` directory of this repository to your PATH environment variable.
+1. Clone this repository. Fire up a terminal and `cd` into your locally cloned repo and then run the snippet below. That will install the (open source) third party libraries used in this repo.
+```
+py -m pip install -r requirements.txt
+```
+6. Add the `/src` directory of this repository to your PATH environment variable.
 
 That's it! Easy as py. Nyuck nyuck nyuck.
 
