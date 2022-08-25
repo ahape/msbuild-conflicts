@@ -13,17 +13,17 @@ class Node():
     self.is_conflict = is_conflict
     self.is_root_proj = False
     self.references = set()
-  def __hash__(self):
-    return id(self.name)
 
 class Ref(Node):
-  def __init__(self, node, version, is_primary): # TODO: Use **kwargs
-    super().__init__(node.name)
+  def __init__(self, node, version, is_primary):
+    self.name = node.name
     self.version = version
-    self.is_root_proj = node.is_root_proj
     self.is_primary = is_primary
+    self.is_root_proj = node.is_root_proj
   def __hash__(self):
-    return super.__hash__(self)
+    return id(self.name)
+  def __eq__(self, other):
+    return id(self.name) == id(other.name)
 
 class Assembly():
   def __init__(self):
@@ -89,6 +89,7 @@ def parse_build_output(build_output):
       line = trim_msberr_line(line)
       proj = parse_project_name(line)
       line = strip_proj_portion(line)
+      is_prim = ref_num == 1
       if line.startswith(" Found conflicts between different versions of"):
         ref_num = 0
       elif line.startswith("     References which depend on"): # Conflict start
@@ -101,18 +102,13 @@ def parse_build_output(build_output):
       elif conflict and conflict_dep_rx.search(line): # Conflict <- Dep1 start
         name = parse_assembly_name(line)
         ref = get_node(nodes, name)
-        tmp = Ref(ref, version, ref_num == 1)
-        conflict.references.add(tmp)
+        conflict.references.add(Ref(ref, version, is_prim))
       elif ref and conflict_dep_dep_rx.search(line): # Conflict <- Dep1 <- Dep2 start
         name = parse_assembly_name(line)
         refref = get_node(nodes, name)
-        is_prim = ref_num == 1
-        # Need to instantiate this first because Python does some weird caching
-        # thing where it does all the `.add`s lazily or something.
-        tmp1 = Ref(refref, None, is_prim)
-        tmp2 = Ref(get_node(nodes, proj), None, is_prim)
-        ref.references.add(tmp1)
-        refref.references.add(tmp2)
+        print(version, is_prim)
+        ref.references.add(Ref(refref, version, is_prim))
+        refref.references.add(Ref(get_node(nodes, proj), version, is_prim))
     else:
       conflict = ref = version = None
   for node in nodes:
