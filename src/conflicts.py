@@ -9,6 +9,7 @@ csproj_rx = re.compile(r"\\([^\\]+)\.csproj")
 
 class Node():
   def __init__(self, name, is_conflict=None):
+    self.id = id(name)
     self.name = name
     self.is_conflict = is_conflict
     self.is_root_proj = False
@@ -16,14 +17,15 @@ class Node():
 
 class Ref(Node):
   def __init__(self, node, version, is_primary):
+    self.id = node.id
     self.name = node.name
     self.version = version
     self.is_primary = is_primary
     self.is_root_proj = node.is_root_proj
   def __hash__(self):
-    return id(self.name)
+    return self.id
   def __eq__(self, other):
-    return id(self.name) == id(other.name)
+    return self.id == other.id
 
 class Assembly():
   def __init__(self):
@@ -106,8 +108,7 @@ def parse_build_output(build_output):
       elif ref and conflict_dep_dep_rx.search(line): # Conflict <- Dep1 <- Dep2 start
         name = parse_assembly_name(line)
         refref = get_node(nodes, name)
-        print(version, is_prim)
-        ref.references.add(Ref(refref, version, is_prim))
+        ref.references.add(Ref(refref, None, is_prim))
         refref.references.add(Ref(get_node(nodes, proj), version, is_prim))
     else:
       conflict = ref = version = None
