@@ -8,7 +8,7 @@ dll_rx = re.compile(r"\\([^\\]+)\.(?:exe|dll)")
 csproj_rx = re.compile(r"\\([^\\]+)\.csproj")
 
 class Node():
-  def __init__(self, name, is_conflict=False):
+  def __init__(self, name, is_conflict=None):
     self.name = name
     self.is_conflict = is_conflict
     self.is_root_proj = False
@@ -17,7 +17,7 @@ class Node():
     return id(self.name)
 
 class Ref(Node):
-  def __init__(self, node, version="", is_primary=False): # TODO: Use **kwargs
+  def __init__(self, node, version, is_primary): # TODO: Use **kwargs
     super().__init__(node.name)
     self.version = version
     self.is_root_proj = node.is_root_proj
@@ -101,17 +101,23 @@ def parse_build_output(build_output):
       elif conflict and conflict_dep_rx.search(line): # Conflict <- Dep1 start
         name = parse_assembly_name(line)
         ref = get_node(nodes, name)
-        conflict.references.add(Ref(ref, version, ref_num == 1))
+        tmp = Ref(ref, version, ref_num == 1)
+        conflict.references.add(tmp)
       elif ref and conflict_dep_dep_rx.search(line): # Conflict <- Dep1 <- Dep2 start
         name = parse_assembly_name(line)
         refref = get_node(nodes, name)
-        ref.references.add(Ref(refref, version, ref_num == 1))
-        refref.references.add(Ref(get_node(nodes, proj), version, ref_num == 1))
+        is_prim = ref_num == 1
+        # Need to instantiate this first because Python does some weird caching
+        # thing where it does all the `.add`s lazily or something.
+        tmp1 = Ref(refref, None, is_prim)
+        tmp2 = Ref(get_node(nodes, proj), None, is_prim)
+        ref.references.add(tmp1)
+        refref.references.add(tmp2)
     else:
       conflict = ref = version = None
   for node in nodes:
     if node.references and node.name != root_proj.name:
-      node.references.add(Ref(root_proj))
+      node.references.add(Ref(root_proj, None, False))
   return nodes
 
 def create_graph_simple(nodes):
@@ -147,6 +153,8 @@ if __name__ == "__main__":
   print(f"Building...")
   if os.path.isdir(build_dir):
     build_output = run_msbuild(build_dir)
+  elif build_dir.endswith(".txt"):
+    build_output = open(build_dir).read()
   else:
     build_output = run_msbuild()
   print("Parsing results...")
