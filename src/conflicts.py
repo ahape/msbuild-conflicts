@@ -14,18 +14,25 @@ class Node():
     self.is_conflict = is_conflict
     self.is_root_proj = False
     self.references = set()
+  def add_reference(self, ref):
+    if ref.node.id == self.id:
+      return False
+    self.references.add(ref)
+    return True
+  def __repr__(self):
+    return f"<Node {self.name}>"
 
-class Ref(Node):
+class Ref():
   def __init__(self, node, version, is_primary):
-    self.id = node.id
-    self.name = node.name
+    self.node = node
     self.version = version
     self.is_primary = is_primary
-    self.is_root_proj = node.is_root_proj
   def __hash__(self):
-    return self.id
+    return self.node.id
   def __eq__(self, other):
-    return self.id == other.id
+    return self.node.id == other.node.id
+  def __repr__(self):
+    return f"<Ref {self.node.name}>"
 
 class Assembly():
   def __init__(self):
@@ -81,7 +88,7 @@ def strip_proj_portion(line):
 def parse_build_output(build_output):
   nodes = []
   ref_num = 0
-  root_proj, conflict, ref, version = None, None, None, None
+  root_proj, conflict, dep, version = None, None, None, None
   for line in build_output.splitlines():
     if not root_proj and line.startswith("Project "):
       name = csproj_rx.search(line)[1]
@@ -96,25 +103,32 @@ def parse_build_output(build_output):
         ref_num = 0
       elif line.startswith("     References which depend on"): # Conflict start
         ref_num += 1
-        ref = None
+        dep = None
         asm = parse_references_which_depend_on(line)
         version = asm.version
         conflict = get_node(nodes, asm.name)
         conflict.is_conflict = True
       elif conflict and conflict_dep_rx.search(line): # Conflict <- Dep1 start
         name = parse_assembly_name(line)
-        ref = get_node(nodes, name)
-        conflict.references.add(Ref(ref, version, is_prim))
-      elif ref and conflict_dep_dep_rx.search(line): # Conflict <- Dep1 <- Dep2 start
+        dep = get_node(nodes, name)
+        conflict.add_reference(Ref(dep, version, is_prim))
+      elif dep and conflict_dep_dep_rx.search(line): # Conflict <- Dep1 <- Dep2 start
         name = parse_assembly_name(line)
-        refref = get_node(nodes, name)
-        ref.references.add(Ref(refref, None, is_prim))
-        refref.references.add(Ref(get_node(nodes, proj), version, is_prim))
+        depdep = get_node(nodes, name)
+        ver = version if depdep.is_conflict else None
+        dep.add_reference(Ref(depdep, ver, is_prim))
+        depdep.add_reference(Ref(get_node(nodes, proj), ver, is_prim))
     else:
       conflict = ref = version = None
   for node in nodes:
     if node.references and node.name != root_proj.name:
-      node.references.add(Ref(root_proj, None, False))
+      node.add_reference(Ref(root_proj, None, False))
+  """
+  for node in nodes:
+    print(node)
+    for ref in node.references:
+      print("\t", ref)
+  """
   return nodes
 
 def create_graph_simple(nodes):
@@ -122,38 +136,46 @@ def create_graph_simple(nodes):
     filename="Diagram",
     directory=tempfile.gettempdir(),
     format="svg")
-  combos = set()
+  linkages = set()
   for node in nodes:
     for ref in node.references:
-      a = ref.name
-      b = node.name
-      if a != b and ((a,b) not in combos or (b,a) not in combos):
-        combos.add((a,b))
-        combos.add((b,a))
+      r, n = ref.node.name, node.name
+      linkage = "<->".join(sorted([r, n]))
+      if r != n and linkage not in linkages:
+        linkages.add(linkage)
         if node.is_conflict:
-          g.node(b, style="filled", fillcolor="salmon")
-        if ref.is_root_proj:
-          g.node(a, style="filled", fillcolor="aquamarine")
+          g.node(n, style="filled", fillcolor="salmon")
+        if ref.node.is_root_proj:
+          g.node(r, style="filled", fillcolor="aquamarine")
         if ref.version:
-          g.edge(a, b, label=ref.version, color="blue" if ref.is_primary else "black")
+          g.edge(r, n, label=ref.version, color="blue" if ref.is_primary else "black")
         else:
-          g.edge(a, b)
+          g.edge(r, n)
   g.attr(overlap="false")
   g.attr(splines="true")
   g.view()
 
-def run_msbuild(build_dir=""):
-  return os.popen(f"msbuild /v:d {build_dir}").read()
+def run_msbuild(proj_file):
+  return os.popen(f"msbuild {proj_file}").read()
+
+def find_csproj(build_dir):
+  for file in os.listdir(build_dir):
+    if file.endswith(".csproj"):
+      return file
+  raise Exception("No .csproj file found")
 
 if __name__ == "__main__":
+  if len(sys.argv) == 1:
+    raise Exception("Must pass in project directory path as argument")
   build_dir = sys.argv[-1]
   print(f"Building...")
-  if os.path.isdir(build_dir):
-    build_output = run_msbuild(build_dir)
-  elif build_dir.endswith(".txt"):
+  if build_dir.endswith(".txt"):
     build_output = open(build_dir).read()
+  elif os.path.isdir(build_dir):
+    build_output = run_msbuild(find_csproj(build_dir))
   else:
-    build_output = run_msbuild()
+    raise Exception(f"Bad argument {build_dir}")
+
   print("Parsing results...")
   nodes = parse_build_output(build_output)
   print("Creating graph...")
