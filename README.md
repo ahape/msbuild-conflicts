@@ -2,27 +2,25 @@
 
 Turns nasty [MSB3277](https://docs.microsoft.com/en-us/visualstudio/msbuild/errors/msb3277?view=vs-2022) build warnings like this:
 ```
-There was a conflict between "System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" and "System.Net.Http, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a".
-    "System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" was chosen because it was primary and "System.Net.Http, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" was not.
-    References which depend on "System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" [C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.Net.Http.dll].
-        C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.Net.Http.dll
-          Project file item includes which caused reference "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.Net.Http.dll".
-            System.Net.Http
-    References which depend on "System.Net.Http, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" [C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.dll].
-        C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\netstandard.dll
-          Project file item includes which caused reference "C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\netstandard.dll".
-            C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll
-        C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\Azure.Core.dll
-          Project file item includes which caused reference "C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\Azure.Core.dll".
-            C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll
-        C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.Formatting.dll
-          Project file item includes which caused reference "C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\System.Net.Http.Formatting.dll".
-            C:\src\projects\myproject\RingCentral\RingCentralRepository\bin\Debug\RingCentralRepository.dll			
+warning MSB3277: Found conflicts between different versions of "SharedDependency" that could not be resolved. [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277: There was a conflict between "SharedDependency, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3e1fed751cb61585" and "SharedDependency, Version=1.0.0.1, Culture=neutral, PublicKeyToken=3e1fed751cb61585". [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:     "SharedDependency, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3e1fed751cb61585" was chosen because it was primary and "SharedDependency, Version=1.0.0.1, Culture=neutral, PublicKeyToken=3e1fed751cb61585" was not. [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:     References which depend on "SharedDependency, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3e1fed751cb61585" [C:\Users\Me\source\repos\SharedDependency\Versions\1.0.0.0\SharedDependency.dll]. [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:         C:\Users\Me\source\repos\SharedDependency\Versions\1.0.0.0\SharedDependency.dll [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:           Project file item includes which caused reference "C:\Users\Me\source\repos\SharedDependency\Versions\1.0.0.0\SharedDependency.dll". [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:             SharedDependency, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3e1fed751cb61585 [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:     References which depend on "SharedDependency, Version=1.0.0.1, Culture=neutral, PublicKeyToken=3e1fed751cb61585" [C:\Users\Me\source\repos\LibraryB\bin\Debug\SharedDependency.dll]. [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:         C:\Users\Me\source\repos\LibraryA\bin\Debug\LibraryA.dll [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:           Project file item includes which caused reference "C:\Users\Me\source\repos\LibraryA\bin\Debug\LibraryA.dll". [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:             LibraryA [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:         C:\Users\Me\source\repos\LibraryB\bin\Debug\LibraryB.dll [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:           Project file item includes which caused reference "C:\Users\Me\source\repos\LibraryB\bin\Debug\LibraryB.dll". [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]
+warning MSB3277:             LibraryB [C:\Users\Me\source\repos\ExampleProgram\ExampleProgram.csproj]			
 ```
 
 into a pretty diagram:
 
-![image](https://user-images.githubusercontent.com/8726792/186281382-421f2d7a-bf4d-4ab0-925c-fbf3d8a538a6.png)
+![image](https://user-images.githubusercontent.com/8726792/186794177-0cd378b1-8014-41be-a6c8-a4019916bc3e.png)
 
 ## Prerequisites
 
