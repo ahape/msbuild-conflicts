@@ -1,7 +1,7 @@
 import re, os, sys, tempfile
 import graphviz as GV
 
-ref_which_dep_rx = re.compile(r'References which depend on "(.*?)"')
+ref_which_dep_rx = re.compile(r'References which depend on (?:or have been unified to )?"(.*?)"')
 conflict_dep_rx = re.compile(r"^         \S")
 conflict_dep_dep_rx = re.compile(r"^             \S")
 dll_rx = re.compile(r"\\([^\\]+)\.(?:exe|dll)")
@@ -40,6 +40,7 @@ class Assembly():
     self.version = None
 
 def parse_fusion_name(fusion):
+  print(fusion)
   parts = fusion.split(", ")
   asm = Assembly()
   name = parts[0]
